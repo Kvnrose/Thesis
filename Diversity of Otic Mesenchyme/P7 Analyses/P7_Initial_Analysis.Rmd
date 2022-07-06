@@ -1,0 +1,119 @@
+---
+title: "P7_Initial_Analysis"
+author: "Kevin Rose"
+date: "Last updated on: 7/6/2022"
+output: 
+  html_document: 
+    toc: yes
+    toc_float: yes
+    theme: readable
+    fig_width: 10
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This is the initial analysis of the OMC-rich P7 scRNA-seq dataset using the Seurat pipeline. Steps included in the initial analysis:  
+
+1) Loading in the P7 dataset:
+  You will need the following cellranger outputs (filtered) which includes:
+    1) barcodes.tsv  
+    2) features.tsv  
+    3) matrix.mtx  
+2) Quality Control  
+3) Normalization, identification of highly variable genes, and scaling the data
+4) Linear Dimensionality Reduction via PCA
+5) Clustering (graph-based)
+6) Visualization via UMAP
+
+## Loading Data into Seurat
+
+```{r, Data_Upload, warning = FALSE, message = FALSE}
+#Libraries needed for analysis
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+
+#P7 Cochlea from CellRanger
+P7.data <- Read10X(data.dir = "./CellRanger/")
+# Initialize the Seurat object with the raw (non-normalized data).
+P7 <- CreateSeuratObject(counts = P7.data, project = "P7", min.cells = 3, min.features = 200)
+rm(P7.data)
+```
+
+
+## Quality Control Steps
+
+```{r, QC}
+#Quality Control
+#Mitochondrial Percentage
+P7[['percent.mt']] <- PercentageFeatureSet(P7, pattern = '^mt-')
+#Visualize QC metrics - VlnPlots
+VlnPlot(P7, cols = 'cyan4', features = c('nFeature_RNA', 'nCount_RNA', 'percent.mt'), ncol = 3)
+#QC ScatterPlots
+plot1 <- FeatureScatter(P7, cols = 'cyan4', feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(P7, cols = 'cyan4', feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+#cutoffs = percent_mt = 30% | nFeatures (genes) = 200 - 7500
+P7 <- subset(P7, subset = nFeature_RNA > 200 & nFeature_RNA < 7500 & percent.mt < 30)
+```
+
+## Normalization, identification of highly variable genes, scale data
+
+```{r, Norm_variable_scale, warning = FALSE, message = FALSE}
+#Normalization by total expression with 10,000 scale factor
+P7 <- NormalizeData(P7, normalization.method = "LogNormalize", scale.factor = 10000)
+
+#Identify top 2000 Highly Variable Genes
+P7 <- FindVariableFeatures(P7, selection.method = "vst", nfeatures = 2000)
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(P7), 10)
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(P7, cols = c('gray75', 'cyan4'))
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot2
+
+#Scale Data
+all.genes <- rownames(P7)
+P7 <- ScaleData(P7, features = all.genes)
+```
+
+## Linear Dimensional Reduction (PCA)
+
+```{r, PCA, warning = FALSE, message = FALSE}
+#Linear Dimensional Reduction
+P7 <- RunPCA(P7, features = VariableFeatures(object = P7))
+#Visualize the first 2 PCs
+VizDimLoadings(P7, dims = 1:2, reduction = "pca")
+DimPlot(P7, reduction = "pca", cols = 'cyan4')
+```
+
+## Clustering
+
+```{r, Cluster, warning = FALSE, message = FALSE}
+#Determine the dimensionality of the dataset
+P7 <- JackStraw(P7, num.replicate = 40)
+P7 <- ScoreJackStraw(P7, dims = 1:20)
+JackStrawPlot(P7)
+ElbowPlot(P7)
+
+#Cluster cells with 0.5 resolution and 15 PCs
+P7 <- FindNeighbors(P7, dims = 1:15)
+P7 <- FindClusters(P7, resolution = 0.5)
+```
+
+## Visualization via UMAP
+
+```{r, UMAP, warning = FALSE, message = FALSE}
+#Run non-linera dimensional reduction (UMAP)
+P7 <- RunUMAP(P7, dims = 1:20)
+
+P7 = readRDS("./RDS_Files/Pou3f4_WT_P7.rds") #Loading in originally computed rds file so UMAP matches manuscript. UMAP generation has some randomness to it.
+DimPlot(P7, reduction = 'umap', pt.size = 2, label = TRUE)
+```
+
