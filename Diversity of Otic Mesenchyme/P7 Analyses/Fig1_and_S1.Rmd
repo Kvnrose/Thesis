@@ -1,0 +1,107 @@
+---
+title: "Fig1_and_S1"
+author: "Kevin Rose"
+date: "Last updated on: 7/10/2022"
+output: 
+  html_document: 
+    toc: yes
+    toc_float: yes
+    theme: readable
+    fig_width: 10
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Generation of Figure 1 and Figure S1  
+
+## Figure 1E. Colored UMAP
+
+```{r, Fig1E, warning=FALSE, message = FALSE}
+
+#Libraries
+library(dplyr)
+library(Seurat)
+library(patchwork)
+library(ggplot2)
+
+#Load in Dataset from RDS file
+P7 = readRDS("./RDS_Files/Pou3f4_WT_P7.rds")
+
+#UMAP Generation
+#To add labels, change label = FALSE to label = TRUE
+#To add legend - remove NoLegend()
+DimPlot(P7, reduction = "umap", pt.size = 2, label = FALSE, label.size = 8, 
+        cols = c('0' = 'palegreen3', '1' = 'yellow3', '2' = 'Pink3', 
+                 '3' = 'skyblue', '4' = 'darkgoldenrod3', 
+                 '5' = 'cyan3', '8' = 'yellowgreen',
+                 '9' = 'seagreen', '10' = 'paleturquoise4', '11' = 'indianred4',
+                 '12' = 'darkmagenta', '13' = 'burlywood4', '15' = 'darkslateblue',
+                 '16' = 'salmon3', '17' = 'violetred3')) + NoLegend()
+
+#Number of Cells in each Cluster - Added to S1A via editor
+table(P7@active.ident)
+
+```
+
+## Figure 1F. Differential Expression Analysis, Heatmap Generation
+
+```{r, Fig1F, warning = FALSE, message = FALSE}
+#Differential Expression Analysis (FigG-J, Table S1)
+P7.markers <- FindAllMarkers(P7, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+
+#Top 25 genes for Heatmap
+top25 <- P7.markers %>% group_by(cluster) %>% top_n(n = 25, wt = avg_log2FC)
+#Heatmap generation | Add Legend by removing NoLegend()
+DoHeatmap(P7, features = top25$gene, angle = 360, hjust = TRUE, group.colors = c('Pink3', 'yellow3', 'skyblue3', 'palegreen3', 'darkgoldenrod3', 'cyan3', 'yellowgreen', 'seagreen', 'paleturquoise4', 'indianred4', 'darkmagenta', 'burlywood4', 'darkslateblue', 'salmon3', 'violetred3')) + scale_fill_gradientn(colors = c('gray60', 'cyan4', 'magenta4')) + theme(text = element_text(size = 25)) + NoLegend()
+```
+
+## Figure S1B. Violin Plots of Marker Genes
+
+```{r, FigS1B, warning = FALSE, message= FALSE}
+
+#Reorder the Cell-Types for Manuscript
+my_levels <- c(2, 1, 3, 0, 4, 5, 8, 9, 10, 11, 12, 13, 15, 16, 17)
+P7@active.ident <- factor(x = P7@active.ident, levels = my_levels)
+
+#Color VlnPlots to match UMAP
+cols = c('0' = 'palegreen3', '1' = 'yellow3', '2' = 'Pink3', '3' = 'skyblue3', '4' = 'darkgoldenrod3', '5' = 'cyan3', '8' = 'yellowgreen', '9' = 'seagreen', '10' = 'paleturquoise4', '11' = 'indianred4', '12' = 'darkmagenta', '13' = 'burlywood4', '15' = 'darkslateblue', '16' = 'salmon3', '17' = 'violetred3')
+
+#Generation of all Violin Plots
+VlnPlot(P7, features = 'Emilin2', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Gcg', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Dlx5', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Ucma', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Epcam', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Mpz', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Cldn11', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Cd34', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Ptprc', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Birc5', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Rgs5', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Tubb3', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Olig1', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Met', cols = cols) + NoLegend()
+VlnPlot(P7, features = 'Pou4f3', cols = cols) + NoLegend()
+```
+
+## Figure 1G-J. and Figure S1C
+
+```{r, Fig1G-J, warning = FALSE, message = FALSE}
+
+#Figure 1G-J, Marker genes used for downstream IHCs
+FeaturePlot(P7, features = c('Emilin2'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Tgfbi'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Runx2'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Car3'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+
+#Figure S1C, OMC specific transcription factor expression
+FeaturePlot(P7, features = c('Pou3f4'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Tbx18'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Tbx1'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+FeaturePlot(P7, features = c('Pou3f3'), pt.size = 2, cols = c('gray75', 'cyan4', 'magenta4'), max.cutoff = 3)
+
+```
+
